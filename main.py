@@ -63,12 +63,12 @@ def bot():
 
         profits = sorted(data.items(), key=lambda x: x[1], reverse=True)
         if profits:
-            (asset, USDT), best_profit = profits[0]
-            if best_profit >= 0.7:
+            (asset, USDT), profit = profits[0]
+            if profit >= 0.7:
                 try:
-                    tg_bot.send_start_trading()
-                    # binance_price = снова проверить, что связка работает (перезагрузить курсы чисто для этой связки)
                     amount = config.trading_amount_usdt / binance_price
+                    tg_bot.send_start_trading(asset, USDT, amount, profit)
+                    # binance_price = снова проверить, что связка работает (перезагрузить курсы чисто для этой связки)
                     withdraw_details = tg_bot.get_withdraw_details(asset)
                     if not withdraw_details:
                         raise Exception('no withdraw_details')
@@ -80,7 +80,7 @@ def bot():
                     binance_address = tg_bot.get_binance_depo_address(USDT)
                     netex_address = fill_form(amount, other.get_link_nettex(ASSETS[asset], USDT), binance_address)
                     tg_bot.withdraw(asset, withdraw_details['network'], netex_address, amount, withdraw_details['fee'])
-                    tg_bot.send_trading_succeed()
+                    tg_bot.send_trading_succeed(asset, USDT, amount, profit)
                 except Exception as e:
                     tg_bot.send_trading_failed(f"SOS! SOS! ERROR: {e}")
                     raise
