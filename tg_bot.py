@@ -204,13 +204,12 @@ def send_report(buddy_id, asset, asset_id, usdt_id, profit):
 
 def send_start_trading(asset, usdt, amount, profit):
     text = f"start trading: {asset} - {usdt}\n" \
-           f"Сумма закупа: {amount} {usdt}. Профит составит: {profit}"
+           f"Сумма закупа: {amount} {asset}. Профит составит: {profit}%"
     send_msg(text)
 
 
 def send_trading_succeed(asset, usdt, amount, profit):
-    text = f"trading succeed: {asset} - {usdt}\n" \
-           f"Сумма закупа: {amount} {usdt}. Профит составит: {profit}"
+    text = f"Сообщение о том, что получился трейдинг"
     send_msg(text)
 
 

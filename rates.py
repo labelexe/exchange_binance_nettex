@@ -10,7 +10,7 @@ from webdriver import driver
 
 
 # -------------Nettex24
-def get_nettex_rates(coin_id, usdt=188):
+def get_nettex_price(coin_id, usdt=188):
 
     url = f'https://netex24.net/api/exchangeDirection/getBy?source={coin_id}&target={usdt}'
     driver.get(url)
@@ -24,7 +24,7 @@ def get_nettex_rates(coin_id, usdt=188):
 
 
 # -------------Binance
-def get_binance_rates(coin):
+def get_binance_price(coin):
     url = 'https://api.binance.com' + '/api/v3/depth' + f'?limit=1&symbol={coin}USDT'
     while True:
         try:

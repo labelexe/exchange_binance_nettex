@@ -27,28 +27,17 @@ def bot():
 
             for asset, asset_id in ASSETS.items():
                 # take rates and min max price on changer
-                nettex_rates, target_min, target_max = rates.get_nettex_rates(coin_id=asset_id, usdt=USDT)
+                nettex_price, target_min, target_max = rates.get_nettex_price(coin_id=asset_id, usdt=USDT)
                 if not (target_min <= config.trading_amount_usdt <= target_max):
                     continue
-                binance_rates = rates.get_binance_rates(coin=asset)
+                binance_rates = rates.get_binance_price(coin=asset)
 
                 # Защита от отсутствия обмена валюты на обменнике
-                if protection_no_currency_exchange(asset, binance_rates, nettex_rates):
+                if protection_no_currency_exchange(asset, binance_rates, nettex_price):
                     continue
 
                 # Расчет профита с принтом результатов
-                profit = other.calculate_profit(asset, binance_rates, nettex_rates)
-
-                # Уведомление в тг если профит больше заданного процента
-                if profit > 0.5:
-                    if (asset, USDT) not in TABLEAU:
-                        buddy_id = (max(i for i, p in TABLEAU.values()) + 1) if TABLEAU else 1
-                        TABLEAU[asset, USDT] = [buddy_id, profit]
-                        tg_bot.send_report(buddy_id, asset, asset_id, USDT, profit)
-                    else:
-                        buddy = TABLEAU[asset, USDT]
-                        if buddy[1] != profit:
-                            buddy[1] = profit
+                profit = other.calculate_profit(asset, binance_rates, nettex_price)
 
                 data[asset, USDT] = profit
                 sleep(0.2)
@@ -62,13 +51,18 @@ def bot():
             # sleep(5)
 
         profits = sorted(data.items(), key=lambda x: x[1], reverse=True)
-        if profits:
-            (asset, USDT), profit = profits[0]
+        for (asset, USDT), profit in profits:
             if profit >= 0.7:
                 try:
+                    nettex_price, target_min, target_max = rates.get_nettex_price(coin_id=ASSETS[asset], usdt=USDT)
+                    binance_price = rates.get_binance_price(coin=asset)
+                    profit = other.calculate_profit(asset, binance_price, nettex_price)
+                    if profit < 0.7:
+                        continue
                     amount = config.trading_amount_usdt / binance_price
+
                     tg_bot.send_start_trading(asset, USDT, amount, profit)
-                    # binance_price = снова проверить, что связка работает (перезагрузить курсы чисто для этой связки)
+                    starting_balance = tg_bot.get_binance_balance('USDT')
                     withdraw_details = tg_bot.get_withdraw_details(asset)
                     if not withdraw_details:
                         raise Exception('no withdraw_details')
@@ -81,6 +75,15 @@ def bot():
                     netex_address = fill_form(amount, other.get_link_nettex(ASSETS[asset], USDT), binance_address)
                     tg_bot.withdraw(asset, withdraw_details['network'], netex_address, amount, withdraw_details['fee'])
                     tg_bot.send_trading_succeed(asset, USDT, amount, profit)
+                    while True:
+                        current_balance = tg_bot.get_binance_balance('USDT')
+                        if current_balance > starting_balance - config.trading_amount_usdt:
+                            tg_bot.send_msg(
+                                f"Сообщение о том, что получен профит. Было {starting_balance} USDT, "
+                                f"стало {current_balance}.",
+                            )
+                            break
+                        sleep(15)
                 except Exception as e:
                     tg_bot.send_trading_failed(f"SOS! SOS! ERROR: {e}")
                     raise
