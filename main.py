@@ -22,7 +22,8 @@ def bot():
         for USDT in USDTS:
 
             for asset, asset_id in ASSETS.items():
-                nettex_rates = rates.get_nettex_rates(coin_id=asset_id, usdt=USDT)
+                # take rates and min max price on changer
+                nettex_rates, target_min, target_max = rates.get_nettex_rates(coin_id=asset_id, usdt=USDT)
                 binance_rates = rates.get_binance_rates(coin=asset)
 
                 # Защита от отсутствия обмена валюты на обменнике

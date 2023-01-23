@@ -26,11 +26,12 @@ def get_nettex_rates(coin_id, usdt=188):
     sleep(1)
     # WebDriverWait(driver, 10).until(
     #    EC.text_to_be_present_in_element_value(By.XPATH, "/html/body/pre/text()"))
+    result = loads(driver.find_element(By.TAG_NAME, 'body').text)
 
     if coin_id in [158, 153, 160, 176]:
-        return float(loads(driver.find_element(By.TAG_NAME, 'body').text)['rate']['rate'])
+        return [result['rate']['rate'], result['targetLimits']['min'], result['targetLimits']['max']]
     else:
-        return 1 / float(loads(driver.find_element(By.TAG_NAME, 'body').text)['rate']['count'])
+        return [1 / result['rate']['count'], result['targetLimits']['min'], result['targetLimits']['max']]
 
 
 # -------------Binance
