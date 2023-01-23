@@ -1,9 +1,12 @@
 # Вычисляет и выводит % профита
-def calculate_profit(coin, rate, rate2):
+from math import floor
 
+
+def calculate_profit(coin, rate, rate2):
     p = 1 / rate * rate2
     profit = (p - 1) * 100  # percent
-    print(f"Yo bitch: {coin}: {round(profit, 2)}%")
+    profit = round(floor(profit * 100) / 100, 2)
+    print(f"Yo bitch: {coin}: {profit}%")
     return profit
 
 
