@@ -4,9 +4,8 @@ from requests import get, ConnectionError as CnxError
 from json import loads
 
 from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
 
+from netex_deal import get_el
 from webdriver import driver
 
 
@@ -15,12 +14,8 @@ def get_nettex_rates(coin_id, usdt=188):
 
     url = f'https://netex24.net/api/exchangeDirection/getBy?source={coin_id}&target={usdt}'
     driver.get(url)
-    # driver.refresh() ?
 
-    sleep(1)
-    # WebDriverWait(driver, 10).until(
-    #    EC.text_to_be_present_in_element_value(By.XPATH, "/html/body/pre/text()"))
-    result = loads(driver.find_element(By.TAG_NAME, 'body').text)
+    result = loads(get_el(By.TAG_NAME, 'body').text)
 
     if coin_id in [158, 153, 160, 176]:
         return [result['rate']['rate'], result['targetLimits']['min'], result['targetLimits']['max']]

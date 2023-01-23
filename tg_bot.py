@@ -63,7 +63,26 @@ def get_binance_depo_address(usdt_id):
             sleep(0.5)
 
 
-def withdraw(asset, address, amount):
+def get_binance_balance(asset):
+    url = 'https://api.binance.com/api/v3/account'
+    params = {
+        'timestamp': get_server_time(),
+    }
+
+    params['signature'] = hmac_new(
+        config.binance_api_secret.encode('utf-8'), urlencode(params).encode('utf-8'), sha256,
+    ).hexdigest()
+
+    while True:
+        r = requests.get(url, params=params, headers={'X-MBX-APIKEY': config.binance_api_key})
+        if r.status_code < 400:
+            return float([b['free'] for b in r.json()['balances'] if b['asset'] == asset][0])
+        else:
+            print(f"Failed request: {url}, {params}")
+            sleep(0.5)
+
+
+def get_withdraw_details(asset):
     network = {'TRX': 'TRX', 'LTC': 'LTC', 'DOGE': 'DOGE', 'BCH': 'BCH', 'DOT': 'DOT', 'ADA': 'ADA'}[asset]
 
     params = {'timestamp': get_server_time()}
@@ -84,9 +103,13 @@ def withdraw(asset, address, amount):
             sleep(0.5)
 
     network_status = {n.pop('network'): n for n in {f.pop('coin'): f for f in r}[asset]['networkList']}[network]
-    if not network_status['withdrawEnable']:
-        return
-    amount += float(network_status['withdrawFee'])
+    return {
+        'network': network, 'fee': float(network_status['withdrawFee']),
+    } if network_status['withdrawEnable'] else None
+
+
+def withdraw(asset, network, address, amount, network_fee):
+    amount += float(network_fee)
     url = 'https://api.binance.com/sapi/v1/capital/withdraw/apply'
     params = {
         'coin': asset.upper(),
@@ -177,3 +200,15 @@ def send_report(buddy_id, asset, asset_id, usdt_id, profit):
 3) ответь мне сообщением:
 {buddy_id} {{адрес кошелька netex}}"""
     send_msg(text)
+
+
+def send_start_trading():
+    pass
+
+
+def send_trading_succeed():
+    pass
+
+
+def send_trading_failed(text):
+    pass
