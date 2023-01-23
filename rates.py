@@ -1,7 +1,7 @@
 from time import sleep
 
 from requests import get, ConnectionError as CnxError
-from json import loads
+from json import loads, JSONDecodeError
 
 from selenium.webdriver.common.by import By
 
@@ -15,8 +15,15 @@ def get_nettex_price(coin_id, usdt=188):
     url = f'https://netex24.net/api/exchangeDirection/getBy?source={coin_id}&target={usdt}'
     driver.get(url)
 
-    result = loads(get_el(By.TAG_NAME, 'body').text)
+    while True:
+        try:
+            result = loads(driver.find_element(By.TAG_NAME, 'body').text)
+            break
+        except JSONDecodeError:
+            sleep(0.2)
 
+    if result.get('status') == 404:
+        return 0., 0., 0.
     if coin_id in [158, 153, 160, 176]:
         return [result['rate']['rate'], result['targetLimits']['min'], result['targetLimits']['max']]
     else:

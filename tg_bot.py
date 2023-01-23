@@ -2,21 +2,20 @@ from hashlib import sha256
 from hmac import new as hmac_new
 from math import log, floor
 from time import sleep
-from urllib.parse import quote, urlencode
+from urllib.parse import urlencode
 
 import requests
 import config
 import other
 
 
-def send_msg(text, parse_mode=None):
+def send_msg(text, parse_mode=None, tg_id=None):
     token = config.TG_TOKEN
-    chat_id = config.admin_tg_id if hasattr(config, 'admin_tg_id') else '129658667'  # Mark by default
+    tg_id = tg_id or config.admin_tg_id if hasattr(config, 'admin_tg_id') else '129658667'
 
-    text = quote(text)
     url = f"https://api.telegram.org/bot{token}/sendMessage"
     params = {
-        'chat_id': str(chat_id),
+        'chat_id': str(tg_id),
         'text': text,
         'disable_web_page_preview': True,
     }
@@ -203,15 +202,6 @@ def send_report(buddy_id, asset, asset_id, usdt_id, profit):
 
 
 def send_start_trading(asset, usdt, amount, profit):
-    text = f"start trading: {asset} - {usdt}\n" \
-           f"Сумма закупа: {amount} {asset}. Профит составит: {profit}%"
-    send_msg(text)
-
-
-def send_trading_succeed(asset, usdt, amount, profit):
-    text = f"Сообщение о том, что получился трейдинг"
-    send_msg(text)
-
-
-def send_trading_failed(text):
+    text = f"start trading: {asset} - {'USDT TRC20' if usdt == 173 else 'USDC BEP20'}\n" \
+           f"Сумма закупа: {round(amount, 5)} {asset}. Профит составит: {profit}%"
     send_msg(text)

@@ -1,63 +1,55 @@
-from datetime import datetime
 from time import sleep
 
 import config
 import other
-from database import db
 import rates
 import tg_bot
 from netex_deal import fill_form
 from protect import protection_no_currency_exchange
 
 ASSETS = {'TRX': 165, 'LTC': 158, 'DOGE': 159, 'BCH': 160, 'DOT': 176, 'ADA': 184}
-USDTS = [173, 188]  # 188 BEP20, 173 TRC20,
-
-TABLEAU = {}  # {(asset, usdt_id): [buddy_id, profit, message_id], } or {('ETH', 173): [24, 2.54, 1026238]}
+USDTS = [173, 188]  # 173 - TRC20, 188 - BEP20
 
 
 def bot():
-    sorted_assets = sorted(ASSETS)
-    db.create_db(sorted_assets)
+    try:
+        while True:
+            data = {}
 
-    while True:
-        start_dt = datetime.utcnow()
-        data = {}
+            for USDT in USDTS:
 
-        for USDT in USDTS:
+                for asset, asset_id in ASSETS.items():
+                    # take rates and min max price on changer
+                    nettex_price, target_min, target_max = rates.get_nettex_price(coin_id=asset_id, usdt=USDT)
+                    if not nettex_price:
+                        print(asset, 'gets 404')
+                        continue
+                    if not (target_min <= config.trading_amount_usdt <= target_max):
+                        print(asset, 'sucks')
+                        continue
+                    binance_rates = rates.get_binance_price(coin=asset)
 
-            for asset, asset_id in ASSETS.items():
-                # take rates and min max price on changer
-                nettex_price, target_min, target_max = rates.get_nettex_price(coin_id=asset_id, usdt=USDT)
-                if not (target_min <= config.trading_amount_usdt <= target_max):
-                    continue
-                binance_rates = rates.get_binance_price(coin=asset)
+                    # Защита от отсутствия обмена валюты на обменнике
+                    if protection_no_currency_exchange(asset, binance_rates, nettex_price):
+                        print(asset, 'protection_no_currency_exchange')
+                        continue
 
-                # Защита от отсутствия обмена валюты на обменнике
-                if protection_no_currency_exchange(asset, binance_rates, nettex_price):
-                    continue
+                    # Расчет профита с принтом результатов
+                    profit = other.calculate_profit(asset, binance_rates, nettex_price)
 
-                # Расчет профита с принтом результатов
-                profit = other.calculate_profit(asset, binance_rates, nettex_price)
+                    data[asset, USDT] = profit
+                    sleep(0.2)
 
-                data[asset, USDT] = profit
-                sleep(0.2)
-
-            end_dt = datetime.utcnow()
-            profits = []
-
-            for asset in sorted_assets:
-                profits.append(data[asset, USDT])
-            db.write_to_db([start_dt.isoformat(), end_dt.isoformat()] + profits)
-            # sleep(5)
-
-        profits = sorted(data.items(), key=lambda x: x[1], reverse=True)
-        for (asset, USDT), profit in profits:
-            if profit >= 0.7:
-                try:
+            profits = sorted(data.items(), key=lambda x: x[1], reverse=True)
+            for (asset, USDT), profit in profits:
+                if profit >= config.trading_profit_threshold:
                     nettex_price, target_min, target_max = rates.get_nettex_price(coin_id=ASSETS[asset], usdt=USDT)
+                    if not (target_min <= config.trading_amount_usdt <= target_max):
+                        print(asset, 'sucks at the moment')
+                        continue
                     binance_price = rates.get_binance_price(coin=asset)
                     profit = other.calculate_profit(asset, binance_price, nettex_price)
-                    if profit < 0.7:
+                    if profit < config.trading_profit_threshold:
                         continue
                     amount = config.trading_amount_usdt / binance_price
 
@@ -74,19 +66,22 @@ def bot():
                     binance_address = tg_bot.get_binance_depo_address(USDT)
                     netex_address = fill_form(amount, other.get_link_nettex(ASSETS[asset], USDT), binance_address)
                     tg_bot.withdraw(asset, withdraw_details['network'], netex_address, amount, withdraw_details['fee'])
-                    tg_bot.send_trading_succeed(asset, USDT, amount, profit)
+                    tg_bot.send_msg('Сообщение о том, что получился трейдинг')
                     while True:
                         current_balance = tg_bot.get_binance_balance('USDT')
                         if current_balance > starting_balance - config.trading_amount_usdt:
-                            tg_bot.send_msg(
-                                f"Сообщение о том, что получен профит. Было {starting_balance} USDT, "
-                                f"стало {current_balance}.",
-                            )
+                            for sub in [config.admin_tg_id] + config.subs:
+                                tg_bot.send_msg(
+                                    f"Сообщение о том, что получен профит. Было {starting_balance} USDT, "
+                                    f"стало {current_balance}.",
+                                    tg_id=sub,
+                                )
                             break
                         sleep(15)
-                except Exception as e:
-                    tg_bot.send_trading_failed(f"SOS! SOS! ERROR: {e}")
-                    raise
+    except Exception as e:
+        for sub in [config.admin_tg_id] + config.subs:
+            tg_bot.send_msg(f"SOS! SOS! ERROR: {e}", tg_id=sub)
+        raise
 
 
 if __name__ == '__main__':
